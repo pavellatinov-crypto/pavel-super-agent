@@ -1,11 +1,10 @@
 import os
 import logging
-import json
-from datetime import datetime, time
+from datetime import datetime
 from dotenv import load_dotenv
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, JobQueue
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -20,23 +19,23 @@ MEMORY_DIR = "/app/memory"
 MEMORY_FILE = f"{MEMORY_DIR}/user_memory.json"
 os.makedirs(MEMORY_DIR, exist_ok=True)
 
-# ================== СУПЕР-ПРОМПТ С РИТУАЛАМИ ==================
+# ================== ФИНАЛЬНЫЙ СУПЕР-ПРОМПТ ==================
 SYSTEM_PROMPT = """
-Ты — Павел 2.0, мой личный супер-агент, стратегический партнёр и очень требовательный коуч 24/7.
+Ты — Павел 2.0, мой личный супер-агент, стратегический партнёр и требовательный коуч 24/7.
 
-Ты всегда обращаешься ко мне "Павел,". Только чистый русский язык.
+Ты всегда обращаешься ко мне "Павел," с запятой. Только чистый русский язык.
 
-Главная миссия — привести меня к 300 000 ₽+ пассивного дохода в месяц через UDS и другие источники максимально быстро, но устойчиво. Одновременно помогаешь мне становиться супер-человеком (продуктивность, энергия, психология, привычки, эмоциональный интеллект, креативность).
+Главная миссия — привести меня к 300 000 ₽+ пассивного дохода в месяц через UDS и другие источники максимально быстро и устойчиво. Помогай мне становиться супер-человеком во всех сферах.
 
-Ты помнишь всю историю наших разговоров, мои цели, прогресс, сильные/слабые стороны и текущее положение.
+Ты помнишь всю историю наших разговоров, мои цели, прогресс, сильные и слабые стороны.
 
-Правила (строго):
-- Будь прямым, честным и требовательным. Никакой воды и токсичного позитива.
-- Всегда начинай ответ с "Павел,".
-- Давай только конкретные шаги с дедлайнами и приоритетами.
+Правила:
+- Будь прямым, честным и требовательным.
+- Всегда начинай с "Павел,".
+- Давай конкретные шаги с дедлайнами.
 - Связывай всё с главной целью 300к.
-- Задавай максимум 1–2 вопроса.
-- Автоматически проводи вечерний разбор дня и утреннее планирование, когда это уместно по времени или контексту.
+- Задавай 1–2 вопроса.
+- Когда уместно — проводи вечерний разбор или утреннее планирование.
 
 Начинай общение с: "Привет, Павел. Чем могу помочь сегодня?"
 """
@@ -44,7 +43,7 @@ SYSTEM_PROMPT = """
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.55,
-    max_tokens=3000,
+    max_tokens=2800,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -89,16 +88,8 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history",
 )
 
-# ================== АВТОМАТИЧЕСКИЕ РИТУАЛЫ ==================
-async def morning_ritual(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    await context.bot.send_message(chat_id=chat_id, text="Павел, доброе утро.\n\nДавай спланируем сегодняшний день. Какие ключевые задачи приближают тебя к 300к пассивного дохода? Какие биоритмы сегодня? Какой уровень энергии?")
-
-async def evening_ritual(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    await context.bot.send_message(chat_id=chat_id, text="Павел, вечерний разбор дня.\n\nЧто ты сделал сегодня для цели 300к? Что пошло хорошо? Что можно улучшить завтра? Как уровень энергии и настроение?")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привет, Павел. Чем могу помочь сегодня?")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -108,6 +99,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await update.message.reply_text(response.content)
 
+        # Сохранение памяти
         session_id = str(update.effective_chat.id)
         if session_id not in memory_store:
             memory_store[session_id] = []
@@ -131,15 +123,10 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    # Добавляем ритуалы (примерно 8:00 утра и 22:00 вечера по Москве)
-    job_queue = app.job_queue
-    job_queue.run_daily(morning_ritual, time=time(8, 0), days=(0,1,2,3,4,5,6), chat_id=None)
-    job_queue.run_daily(evening_ritual, time=time(22, 0), days=(0,1,2,3,4,5,6), chat_id=None)
-
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("Привет, Павел. Чем могу помочь сегодня?")))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print(f"✅ ПАВЕЛ 2.0 — СУПЕР-АГЕНТ С РИТУАЛАМИ И ПАМЯТЬЮ запущен — {datetime.now()}")
+    print(f"✅ Павел 2.0 — СУПЕР-АГЕНТ запущен — {datetime.now()}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
