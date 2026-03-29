@@ -15,9 +15,13 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
+MEMORY_DIR = "/app/memory"
+MEMORY_FILE = f"{MEMORY_DIR}/user_memory.json"
+os.makedirs(MEMORY_DIR, exist_ok=True)
+
 # ================== ФИНАЛЬНЫЙ ПРОМПТ ==================
 SYSTEM_PROMPT = """
-Ты — Павел 2.0, мой личный супер-агент, стратегический партнёр и крайне требовательный коуч 24/7.
+Ты — Павел 2.0, мой личный супер-агент и крайне требовательный коуч 24/7.
 
 Я выгорел от производства диванов, доход ≈ 100 000 ₽ в месяц, и хочу полностью уйти от этого бизнеса. Я уже в партнёрах UDS по тарифу "Старт". Главная цель — стабильный пассивный доход от 300 000 ₽ в месяц и выше через UDS.
 
@@ -30,7 +34,7 @@ SYSTEM_PROMPT = """
 - Если я откладываю — прямо говори об этом.
 - Фокус на UDS: привлечение партнёров, продажа лицензий, воронки, работа с возражениями.
 
-Фразу "Привет, Павел. Чем могу помочь сегодня?" используй **только** при первом сообщении или после долгого перерыва. В остальных ответах сразу переходи к делу.
+Фразу "Привет, Павел. Чем могу помочь сегодня?" используй **только** при первом сообщении. В остальных ответах сразу переходи к делу.
 """
 
 llm = ChatGroq(
@@ -62,18 +66,19 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history",
 )
 
+# ================== АВТОМАТИЧЕСКИЕ РИТУАЛЫ ==================
 async def morning_ritual(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
     await context.bot.send_message(
         chat_id=chat_id,
-        text="Павел, доброе утро.\n\nДавай спланируем день. Какие 3 ключевые задачи сегодня приближают тебя к 300к пассивного дохода через UDS? Какой уровень энергии? Какие дедлайны ставим на сегодня?"
+        text="Павел, доброе утро.\n\nДавай спланируем сегодняшний день.\n\n1. Какие 2–3 ключевые задачи сегодня приближают тебя к 300к через UDS?\n2. Какой уровень энергии сегодня?\n3. Какие дедлайны ставим на сегодня?"
     )
 
 async def evening_ritual(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
     await context.bot.send_message(
         chat_id=chat_id,
-        text="Павел, вечерний разбор.\n\nЧто ты сделал сегодня для цели 300к через UDS? Что пошло хорошо? Что можно улучшить завтра? Как уровень энергии и настроение? Какие задачи на завтра?"
+        text="Павел, вечерний разбор дня.\n\n1. Что ты сделал сегодня для цели 300к через UDS?\n2. Что пошло хорошо, а что можно улучшить?\n3. Как уровень энергии и настроение?\n4. Какие задачи ставим на завтра?"
     )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,16 +103,16 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    # Автоматические ритуалы по Челябинску (UTC+5)
-    # Утро в 7:00, вечер в 22:00
+    # Ритуалы по Челябинску (UTC+5)
     job_queue = app.job_queue
-    job_queue.run_daily(morning_ritual, time=time(7, 0), days=(0,1,2,3,4,5,6), chat_id=None)
-    job_queue.run_daily(evening_ritual, time=time(22, 0), days=(0,1,2,3,4,5,6), chat_id=None)
+    if job_queue:
+        job_queue.run_daily(morning_ritual, time=time(7, 0), days=(0,1,2,3,4,5,6), chat_id=None)
+        job_queue.run_daily(evening_ritual, time=time(22, 0), days=(0,1,2,3,4,5,6), chat_id=None)
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print(f"✅ Павел 2.0 с автоматическими ритуалами запущен — {datetime.now()}")
+    print(f"✅ Павел 2.0 с автоматическими ритуалами (7:00 и 22:00) запущен — {datetime.now()}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
