@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -15,34 +16,31 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
-# ================== ПОЛНЫЙ СИСТЕМНЫЙ ПРОМПТ ==================
+MEMORY_DIR = "/app/memory"
+MEMORY_FILE = f"{MEMORY_DIR}/user_memory.json"
+
+# Создаём директорию, если её нет
+os.makedirs(MEMORY_DIR, exist_ok=True)
+
+# ================== СУПЕР ПРОМПТ ==================
 SYSTEM_PROMPT = """
-Ты — Павел 2.0, мой личный супер-агент, эксперт-наставник, коуч, стратег и достигатор 24/7.
+Ты — Павел 2.0, мой личный супер-агент и стратегический партнёр 24/7.
 
-Ты всегда обращаешься ко мне строго "Павел," с запятой. Отвечай исключительно на чистом, грамотном русском языке. Никаких иностранных слов.
+Ты всегда обращаешься ко мне "Павел,". Только чистый русский язык.
 
-Твоя главная миссия — максимально быстро и устойчиво привести меня к стабильному пассивному доходу от 300 000 рублей в месяц и выше через партнёрство с UDS и другие источники, сохраняя здоровье, энергию и баланс жизни. Помогай мне становиться супер-человеком во всех сферах.
+Твоя главная миссия — помочь мне быстро и устойчиво выйти на 300 000 ₽+ пассивного дохода в месяц через UDS и другие источники, делая меня супер-человеком (продуктивность, энергия, психология, привычки, эмоциональный интеллект).
 
-Ты помнишь всю историю наших разговоров, мои цели, прогресс, сильные и слабые стороны.
+Ты помнишь ВСЮ историю наших разговоров, мои цели, прогресс, финансовое положение, сильные и слабые стороны.
 
-Правила поведения:
-- Будь уверенным, прямым, честным и требовательным коучем.
-- Всегда начинай ответ с "Павел,".
-- Давай только конкретные actionable шаги с дедлайнами и приоритетами.
-- Связывай каждую рекомендацию с главной целью.
-- Задавай 1–2 точных вопроса.
-- Предупреждай о рисках выгорания.
+Будь требовательным, честным и структурированным коучем. Давай конкретные действия с дедлайнами. Связывай всё с главной целью.
 
-Начинай каждое общение с: "Привет, Павел. Чем могу помочь сегодня?"
-
-Твоя задача — сделать меня высокоэффективным супер-человеком.
+Начинай каждое сообщение с: "Привет, Павел. Чем могу помочь сегодня?"
 """
 
-# ================== LLM ==================
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.6,
-    max_tokens=2500,
+    max_tokens=3000,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -54,13 +52,31 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm
 
-# Память в оперативной памяти (стабильно работает на Railway)
-store = {}
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_memory(memory):
+    with open(MEMORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(memory, f, ensure_ascii=False, indent=2)
+
+memory_store = load_memory()
 
 def get_session_history(session_id: str):
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
+    if session_id not in memory_store:
+        memory_store[session_id] = []
+    history = ChatMessageHistory()
+    for msg in memory_store[session_id]:
+        if msg["role"] == "user":
+            history.add_user_message(msg["content"])
+        else:
+            history.add_ai_message(msg["content"])
+    return history
 
 chain_with_history = RunnableWithMessageHistory(
     chain,
@@ -79,6 +95,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             config={"configurable": {"session_id": str(update.effective_chat.id)}}
         )
         await update.message.reply_text(response.content)
+
+        # Сохраняем в постоянную память
+        session_id = str(update.effective_chat.id)
+        if session_id not in memory_store:
+            memory_store[session_id] = []
+        memory_store[session_id].append({"role": "user", "content": update.message.text})
+        memory_store[session_id].append({"role": "assistant", "content": response.content})
+        
+        if len(memory_store[session_id]) > 200:
+            memory_store[session_id] = memory_store[session_id][-200:]
+        
+        save_memory(memory_store)
+
     except Exception as e:
         logging.error(f"Ошибка: {e}")
         await update.message.reply_text("Павел, произошла ошибка. Попробуй ещё раз.")
@@ -90,11 +119,10 @@ def main():
         return
 
     app = Application.builder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print(f"✅ Павел 2.0 с памятью запущен — {datetime.now()}")
+    print(f"✅ Павел 2.0 СУПЕР-АГЕНТ с долгосрочной памятью запущен — {datetime.now()}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
