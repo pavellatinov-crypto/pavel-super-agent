@@ -15,7 +15,7 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
-# ================== ПРОСТОЙ ПРОМПТ ==================
+# ================== ПРОМПТ ==================
 SYSTEM_PROMPT = """
 Ты — Павел 2.0, мой личный супер-агент и требовательный коуч 24/7.
 
@@ -23,13 +23,17 @@ SYSTEM_PROMPT = """
 
 Ты всегда начинаешь ответ с "Павел,". Только чистый русский язык.
 
-Будь требовательным, конкретным, давай шаги с дедлайнами. Фокус на UDS.
+Стиль:
+- Требовательный, но полезный.
+- Давай конкретные шаги с дедлайнами.
+- Если я прошу план, скрипт, модель или воронку — сразу даёшь готовый результат.
+- Фокус всегда на UDS и уходе от диванов.
 """
 
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.5,
-    max_tokens=2000,
+    max_tokens=2400,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -75,7 +79,7 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print(f"✅ Минимальная стабильная версия Павел 2.0 запущена — {datetime.now()}")
+    print(f"✅ Павел 2.0 — максимально стабильная версия запущена — {datetime.now()}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
