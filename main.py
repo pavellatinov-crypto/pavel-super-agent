@@ -1,10 +1,10 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, time
 from dotenv import load_dotenv
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, JobQueue
 
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -15,24 +15,19 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
-# ================== ПРОМПТ С ИНСТРУМЕНТАМИ ==================
+# ================== ПРОМПТ ==================
 SYSTEM_PROMPT = """
-Ты — Павел 2.0, мой личный супер-агент, стратегический партнёр и требовательный коуч 24/7.
+Ты — Павел 2.0, мой личный супер-агент и требовательный коуч 24/7.
 
-Я выгорел от диванов, доход ≈ 100 000 ₽, уже в партнёрах UDS по тарифу "Старт". Главная цель — стабильный пассивный доход от 300 000 ₽ в месяц и выше через UDS.
+Я выгорел от диванов, доход ≈ 100 000 ₽, уже в партнёрах UDS по тарифу "Старт". Главная цель — 300 000 ₽+ пассивного дохода в месяц через UDS.
 
-Ты всегда начинаешь ответ с "Павел,". Только чистый русский язык.
-
-Ты умеешь отлично работать с тремя инструментами:
-1. **Генератор скриптов продаж** — создаёшь готовые скрипты для звонков, сообщений, презентаций UDS.
-2. **Финансовое моделирование** — рассчитываешь, сколько нужно партнёров/лицензий, сроки выхода на 300к, прогнозируешь доход.
-3. **Анализ и улучшение воронки продаж** — разбираешь текущую воронку и даёшь конкретные рекомендации по улучшению.
+Ты всегда начинаешь ответ с "Павел,". Только чистый русский.
 
 Стиль:
 - Требовательный, но полезный и конструктивный.
-- Если я прошу инструмент — сразу даёшь его в готовом виде.
-- Давай конкретные действия с дедлайнами.
-- Фокус всегда на переходе от диванов к масштабированию UDS.
+- Давай конкретные шаги с дедлайнами.
+- Если я откладываю — мягко, но прямо напоминай о цели.
+- Фокус на UDS: привлечение партнёров, продажа лицензий, воронки, работа с возражениями.
 
 Фразу "Чем могу помочь сегодня?" используй только при первом сообщении.
 """
@@ -40,7 +35,7 @@ SYSTEM_PROMPT = """
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.5,
-    max_tokens=3000,
+    max_tokens=2600,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
@@ -66,6 +61,21 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history",
 )
 
+# ================== СТАБИЛЬНЫЕ РИТУАЛЫ ==================
+async def morning_ritual(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Павел, доброе утро.\n\nДавай спланируем день.\n\n1. Какие 2–3 ключевые задачи сегодня приближают тебя к 300к через UDS?\n2. Какой уровень энергии сегодня?\n3. Какие дедлайны ставим на сегодня?"
+    )
+
+async def evening_ritual(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Павел, вечерний разбор.\n\n1. Что ты сделал сегодня для цели 300к через UDS?\n2. Что пошло хорошо, а что можно улучшить?\n3. Как уровень энергии и настроение?\n4. Какие задачи ставим на завтра?"
+    )
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет, Павел. Чем могу помочь сегодня?")
 
@@ -88,10 +98,20 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
+    # Ритуалы по Челябинску (UTC+5)
+    job_queue = app.job_queue
+    if job_queue:
+        try:
+            job_queue.run_daily(morning_ritual, time=time(7, 0), days=(0,1,2,3,4,5,6), chat_id=None)
+            job_queue.run_daily(evening_ritual, time=time(22, 0), days=(0,1,2,3,4,5,6), chat_id=None)
+            print("Ритуалы успешно запланированы (7:00 и 22:00)")
+        except Exception as e:
+            logging.error(f"Ошибка планирования ритуалов: {e}")
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print(f"✅ Павел 2.0 с инструментами (скрипты + моделирование + анализ воронки) запущен — {datetime.now()}")
+    print(f"✅ Павел 2.0 с стабильными ритуалами запущен — {datetime.now()}")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
