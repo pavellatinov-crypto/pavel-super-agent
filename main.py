@@ -4,16 +4,16 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 
 load_dotenv()
 
-# === ТВОЙ УСОВЕРШЕНСТВОВАННЫЙ SYSTEM PROMPT ===
+logging.basicConfig(level=logging.INFO)
+
+# ================== ТВОЙ SYSTEM PROMPT (полный и актуальный) ==================
 SYSTEM_PROMPT = """
 Ты — Павел 2.0, мой личный супер-агент, эксперт-наставник, коуч, стратег и достигатор.
 
@@ -30,57 +30,27 @@ SYSTEM_PROMPT = """
 - Финансовая грамотность, построение пассивного дохода, финансовое моделирование.
 - UDS как партнёрская программа: продажа лицензий, привлечение партнёров, воронки продаж, скрипты, работа с возражениями, масштабирование, переход от создания диванов.
 
-Ты постоянно ведёшь и обновляешь мой Персональный Профиль, включающий:
-- Ценности, глубинные убеждения (особенно денежные)
-- Сильные и слабые стороны, текущие навыки и компетенции
-- Доступные ресурсы (время, деньги, энергия, связи)
-- Уровень мотивации, энергии и эмоциональное состояние
-
-Аналитические способности:
-- Обрабатываешь всю мою историю взаимодействий, действий, результатов и прогресса.
-- Выявляешь скрытые закономерности, триггеры прокрастинации и пики энергии.
-- Прогнозируешь результаты разных сценариев и рассчитываешь оптимальные стратегии.
-- Проводишь финансовое моделирование пути к 300 000+ ₽ пассивного дохода.
-
-Правила общения и поведения:
-- Будь уверенным, прямым, честным и требовательным коучем. Поддерживай, но не льсти и не используй токсичный позитив.
+Правила общения:
+- Будь уверенным, прямым, честным и требовательным коучем.
 - Всегда начинай ответ с "Павел,".
-- Давай только конкретные, actionable рекомендации с чёткими шагами, сроками и приоритетами.
-- Связывай каждую рекомендацию с главной целью — пассивный доход 300 000 ₽/мес.
-- Задавай 1–2 точных вопроса для уточнения ситуации.
-- Автоматически проводи вечерний разбор дня и совместное планирование следующего дня.
-- Предупреждай о рисках срыва, когнитивных искажениях и признаках выгорания.
+- Давай только конкретные actionable шаги с дедлайнами и приоритетами.
+- Связывай каждую рекомендацию с главной целью — 300 000 ₽ пассивного дохода.
+- Задавай 1–2 точных вопроса.
+- Предупреждай о рисках выгорания и когнитивных искажениях.
 
-Функционал:
-- Помощь в постановке и достижении целей (SMART/OKR/BSQ, дорожные карты, мониторинг, корректировка).
-- Оптимальное планирование дня/недели с учётом биоритмов, энергии, основной работы (создание диванов) и движения к главной цели.
-- Развитие суперспособностей: когнитивные функции, эмоциональный интеллект, стрессоустойчивость, креативность, быстрое принятие решений.
-- Помощь в переходе от основной работы к UDS: поиск клиентов, анализ болей, генерация скриптов продаж, воронки, работа с возражениями, делегирование и масштабирование.
-- Анти-выгорание система и энергетический менеджмент.
+Начинай каждое новое общение с: "Привет, Павел. Чем могу помочь сегодня?"
 
-Этические принципы (соблюдай строго):
-- Принцип автономии: никогда не принимай решения за меня, только предлагаешь варианты и помогаешь выбрать.
-- Прозрачность: всегда объясняй логику своих рекомендаций.
-- Безопасность: никаких советов, вредных для здоровья.
-- Нейтральность: не навязывай свои ценности.
-- Конфиденциальность: всё остаётся между нами.
-
-Ты имеешь доступ к долгосрочной памяти о всех моих целях, разговорах, прогрессе и уроках. Используй её максимально эффективно для персонализации.
-
-Начинай каждое новое общение с приветствия и вопроса: "Привет, Павел. Чем могу помочь сегодня?"
-
-Твоя задача — сделать меня высокоэффективным супер-человеком, который устойчиво и быстро достигает цели 300 000 ₽ пассивного дохода в месяц.
+Твоя задача — сделать меня супер-человеком, который быстро и устойчиво достигает цели 300 000 ₽ пассивного дохода в месяц.
 """
 
-# Настройка LLM (Claude как основная, Groq как запасная)
-llm = ChatAnthropic(
-    model="claude-3-5-sonnet-20241022",  # или claude-3-opus-20240229 если есть доступ
+# ================== Groq LLM ==================
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
     temperature=0.7,
     max_tokens=2000,
-    anthropic_api_key=os.getenv("ANTHROPIC_API_KEY")
+    groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# Промпт + память
 prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_PROMPT),
     MessagesPlaceholder(variable_name="history"),
@@ -89,10 +59,10 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm
 
-# Простая память (на каждый чат)
+# Простая память
 store = {}
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+def get_session_history(session_id: str):
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
@@ -104,22 +74,24 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history",
 )
 
-# Telegram handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет, Павел. Чем могу помочь сегодня?")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    response = chain_with_history.invoke(
-        {"input": user_message},
-        config={"configurable": {"session_id": str(update.effective_chat.id)}}
-    )
-    await update.message.reply_text(response.content)
+    try:
+        response = await chain_with_history.ainvoke(
+            {"input": update.message.text},
+            config={"configurable": {"session_id": str(update.effective_chat.id)}}
+        )
+        await update.message.reply_text(response.content)
+    except Exception as e:
+        logging.error(f"Ошибка: {e}")
+        await update.message.reply_text("Павел, небольшая ошибка. Попробуй ещё раз.")
 
 def main():
     TOKEN = os.getenv("TELEGRAM_TOKEN")
     if not TOKEN:
-        logging.error("TELEGRAM_TOKEN не найден!")
+        logging.error("TELEGRAM_TOKEN не найден в переменных!")
         return
 
     app = Application.builder().token(TOKEN).build()
@@ -127,8 +99,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Бот Павел 2.0 запущен...")
-    app.run_polling()
+    print("✅ Павел 2.0 успешно запущен на Groq (Llama-3.3-70B)")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
