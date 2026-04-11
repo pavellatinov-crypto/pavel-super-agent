@@ -15,7 +15,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.text:
         return
 
-    text = update.message.text    text = update.message.text
+    text = update.message.text
 
     state = {
         "user_input": text,
