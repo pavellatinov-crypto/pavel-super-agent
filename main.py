@@ -1,20 +1,44 @@
+import os
+from telegram import Update
+from telegram.ext import Application, MessageHandler, filters, ContextTypes
+
 from graph import graph
 
-state = {
-    "user_input": "Салон красоты, мало клиентов",
-    "analysis": "",
-    "strategy": "",
-    "content": "",
-    "goal": "выйти на 300000 рублей в месяц через UDS"
-}
+TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-result = graph.invoke(state)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
 
-print("\n=== АНАЛИЗ ===\n")
-print(result["analysis"])
+    state = {
+        "user_input": text,
+        "analysis": "",
+        "strategy": "",
+        "content": "",
+        "goal": "выйти на 300000 рублей в месяц через UDS"
+    }
 
-print("\n=== СТРАТЕГИЯ ===\n")
-print(result["strategy"])
+    result = graph.invoke(state)
 
-print("\n=== КОНТЕНТ ===\n")
-print(result["content"])
+    answer = f"""
+АНАЛИЗ:
+{result["analysis"]}
+
+СТРАТЕГИЯ:
+{result["strategy"]}
+
+КОНТЕНТ:
+{result["content"]}
+"""
+
+    await update.message.reply_text(answer)
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("Бот запущен...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
