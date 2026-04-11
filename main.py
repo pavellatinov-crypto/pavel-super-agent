@@ -7,7 +7,15 @@ from graph import graph
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    print("ПОЛУЧИЛ СООБЩЕНИЕ")
+
+    if not update.message:
+        return
+
+    if not update.message.text:
+        return
+
+    text = update.message.text    text = update.message.text
 
     state = {
         "user_input": text,
