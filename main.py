@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+print("TOKEN:", TOKEN)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("ПОЛУЧИЛ СООБЩЕНИЕ")
