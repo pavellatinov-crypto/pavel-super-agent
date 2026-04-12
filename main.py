@@ -1,8 +1,4 @@
-print("ЭТО НОВЫЙ MAIN.PY!!!")
-
 print("СТАРТ ФАЙЛА")
-
-print("Я ТОЧНО ЗАПУСТИЛСЯ")
 
 import os
 from telegram import Update
@@ -21,7 +17,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Я живой")
 
-
 def main():
     print("ЗАШЛИ В MAIN")
 
@@ -31,7 +26,6 @@ def main():
 
     print("Бот запущен...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
