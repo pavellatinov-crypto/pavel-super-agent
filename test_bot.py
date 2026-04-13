@@ -22,33 +22,33 @@ async def handle(update, context):
         context.user_data["mode"] = "strategy"
         await update.message.reply_text("Ок, ты в режиме стратегии. Опиши бизнес")
 
-    elif context.user_data.get("mode") == "strategy":
+   elif context.user_data.get("mode") == "strategy":
 
-       if "history" not in context.user_data:
-    context.user_data["history"] = []
+    if "history" not in context.user_data:
+        context.user_data["history"] = []
 
-context.user_data["history"].append({
-    "role": "user",
-    "content": text
-})
+    context.user_data["history"].append({
+        "role": "user",
+        "content": text
+    })
 
-messages = [
-    {"role": "system", "content": "Ты сильный бизнес-стратег. Сначала задай 1-2 уточняющих вопроса, потом дай стратегию."}
-] + context.user_data["history"]
+    messages = [
+        {"role": "system", "content": "Ты сильный бизнес-стратег. Сначала задай 1-2 уточняющих вопроса, потом дай стратегию."}
+    ] + context.user_data["history"]
 
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=messages
-)
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=messages
+    )
 
-answer = response.choices[0].message.content
+    answer = response.choices[0].message.content
 
-context.user_data["history"].append({
-    "role": "assistant",
-    "content": answer
-})
+    context.user_data["history"].append({
+        "role": "assistant",
+        "content": answer
+    })
 
-await update.message.reply_text(answer)
+    await update.message.reply_text(answer)
 
     else:
         await update.message.reply_text("Напиши, что тебе нужно")
