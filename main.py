@@ -6,7 +6,7 @@ from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 import os
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = "ТВОЙ_ТОКЕН"
 print("TOKEN:", TOKEN)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
